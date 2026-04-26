@@ -3,12 +3,11 @@ import { Logo } from "./Logo";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, Calendar, Dumbbell, MessageSquare, LayoutDashboard, Zap } from "lucide-react";
+import { LogOut, Calendar, MessageSquare, LayoutDashboard } from "lucide-react";
 
 const navItems = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { path: "/calendar", label: "Schedule", icon: Calendar },
-  { path: "/workout", label: "Workout", icon: Dumbbell },
   { path: "/chat", label: "AI Coach", icon: MessageSquare },
 ];
 
@@ -47,13 +46,6 @@ export function Navigation() {
                 {item.label}
               </Link>
             ))}
-            <Link
-              to="/workout"
-              className="ml-2 px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground font-medium flex items-center gap-1.5 hover:bg-primary/90 transition-colors"
-            >
-              <Zap className="h-3.5 w-3.5" />
-              Quick Workout
-            </Link>
           </nav>
         )}
         {user && (

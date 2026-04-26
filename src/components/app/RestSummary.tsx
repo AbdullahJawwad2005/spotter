@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Sparkles, CheckCircle2, AlertCircle, Target, ArrowRight, TrendingUp, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { speak, stopSpeaking } from "@/lib/voice";
+import { speak, stopSpeaking, primeVoice } from "@/lib/voice";
 import { toast } from "sonner";
 
 export interface SetRecord {
@@ -42,8 +42,14 @@ export function RestSummary({ set, restSec, isLastSet, onContinue, onSkip }: Pro
   const [remaining, setRemaining] = useState(restSec);
   const spokenRef = useRef(false);
 
-  // Fetch summary on mount
+  // Fetch summary on mount — skip if no reps were actually logged
   useEffect(() => {
+    // If the user pressed "Finish set" without logging any reps, don't call the AI
+    if (set.reps.length === 0) {
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
     (async () => {
       try {
@@ -121,10 +127,10 @@ export function RestSummary({ set, restSec, isLastSet, onContinue, onSkip }: Pro
           />
         </div>
         <div className="flex items-center justify-center gap-2 pt-2">
-          <Button variant="outline" size="sm" onClick={() => { stopSpeaking(); onSkip(); }} className="h-9 text-xs">
+          <Button variant="outline" size="sm" onClick={() => { primeVoice(); stopSpeaking(); onSkip(); }} className="h-9 text-xs">
             Skip rest
           </Button>
-          <Button size="sm" onClick={() => { stopSpeaking(); onContinue(); }} disabled={remaining > 0 && !summary} className="h-9 text-xs gap-1.5">
+          <Button size="sm" onClick={() => { primeVoice(); stopSpeaking(); onContinue(); }} disabled={remaining > 0 && !summary && set.reps.length > 0} className="h-9 text-xs gap-1.5">
             {isLastSet ? "Finish workout" : "Next set"} <ArrowRight className="h-3 w-3" />
           </Button>
         </div>
@@ -139,7 +145,13 @@ export function RestSummary({ set, restSec, isLastSet, onContinue, onSkip }: Pro
           </span>
         </div>
 
-        {loading && (
+        {set.reps.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            No reps logged — complete your reps to get AI coaching feedback.
+          </p>
+        )}
+
+        {set.reps.length > 0 && loading && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             Reviewing your reps…

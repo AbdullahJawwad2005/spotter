@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import {
   Dumbbell, Play, Calendar, CheckCircle2, SkipForward,
-  Flame, Target, Clock, TrendingUp, Loader2,
+  Flame, Target, Clock, TrendingUp, Loader2, Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
@@ -48,7 +48,8 @@ export default function Dashboard() {
 
     try {
       const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
+      // Use local date to avoid UTC offset shifting the "today" date
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
       // Get this week's scheduled workouts
       const startOfWeek = new Date(today);
@@ -243,6 +244,25 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Quick Workout CTA */}
+        <div
+          onClick={() => navigate('/workout')}
+          className="border border-primary/30 bg-primary/5 hover:bg-primary/10 rounded-xl p-5 flex items-center justify-between gap-4 cursor-pointer transition-colors"
+        >
+          <div className="flex items-center gap-4">
+            <div className="h-11 w-11 rounded-lg bg-primary flex items-center justify-center shrink-0">
+              <Zap className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div>
+              <div className="font-display text-base">Quick Workout</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Generate a custom AI workout and start immediately</div>
+            </div>
+          </div>
+          <Button size="sm" className="gap-1.5 shrink-0">
+            <Play className="h-3.5 w-3.5" /> Start
+          </Button>
         </div>
 
         {/* No plan state */}

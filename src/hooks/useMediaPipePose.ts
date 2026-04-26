@@ -52,15 +52,18 @@ export function useMediaPipePose(
   const onFrameRef = useRef(onFrame);
   onFrameRef.current = onFrame;
 
-  const start = useCallback(async () => {
-    if (status === "running" || status === "loading") return;
+  const start = useCallback(async (): Promise<boolean> => {
+    if (status === "running" || status === "loading") return false;
     setStatus("loading");
     setError(null);
     try {
       await loadScript(POSE_CDN);
       await loadScript(CAMERA_CDN);
 
-      // Camera permission
+      if (!window.Pose) throw new Error("MediaPipe Pose failed to load — check your network connection");
+      if (!window.Camera) throw new Error("MediaPipe Camera failed to load — check your network connection");
+
+      // Acquire camera stream first so permissions are granted before model init
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 1280, height: 720, facingMode: "user" },
         audio: false,
@@ -101,10 +104,19 @@ export function useMediaPipePose(
       cameraRef.current = camera;
       camera.start();
       setStatus("running");
+      return true;
     } catch (e) {
       console.error("Pose start failed", e);
-      setError(e instanceof Error ? e.message : "Failed to start camera");
+      const msg = e instanceof Error ? e.message : "Failed to start camera";
+      if (msg.includes("Permission denied") || msg.includes("NotAllowedError")) {
+        setError("Camera permission denied — allow camera access in your browser");
+      } else if (msg.includes("NotFoundError") || msg.includes("DevicesNotFoundError")) {
+        setError("No camera found on this device");
+      } else {
+        setError(msg);
+      }
       setStatus("error");
+      return false;
     }
   }, [status, videoRef]);
 
@@ -119,6 +131,7 @@ export function useMediaPipePose(
       v.srcObject = null;
     }
     setStatus("idle");
+    setError(null);
   }, [videoRef]);
 
   useEffect(() => () => stop(), [stop]);

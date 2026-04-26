@@ -1,13 +1,16 @@
-// AI Workout Plan Generator edge function.
-// Generates personalized workout plans based on user inputs.
-import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
+// Generates a personalized workout plan using the Anthropic API.
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 interface WorkoutRequest {
   goal: "strength" | "muscle" | "fat_loss" | "fitness";
   level: "beginner" | "intermediate" | "advanced";
   focus: "full_body" | "upper" | "lower" | "push" | "pull";
   equipment: "full_gym" | "dumbbells" | "bodyweight";
-  duration: number; // in minutes
+  duration: number;
 }
 
 const SYSTEM_PROMPT = `You are an expert strength and conditioning coach. Generate a structured workout plan based on the user's specifications.
@@ -19,9 +22,9 @@ Output format (JSON):
     { "exercise": "name", "duration": "time or reps", "notes": "optional form cue" }
   ],
   "main": [
-    { 
-      "exercise": "name", 
-      "sets": number, 
+    {
+      "exercise": "name",
+      "sets": number,
       "reps": "rep range or time",
       "rest": "rest time",
       "notes": "key form cues"
@@ -50,78 +53,94 @@ Deno.serve(async (req) => {
 
   try {
     const body = (await req.json()) as WorkoutRequest;
-    
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const goalNames = {
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
+
+    const goalNames: Record<string, string> = {
       strength: "Build Strength (heavy weight, low reps, long rest)",
       muscle: "Build Muscle (moderate weight, 8-12 reps, hypertrophy focus)",
       fat_loss: "Burn Fat (higher reps, short rest, metabolic conditioning)",
       fitness: "General Fitness (balanced, functional movements)",
     };
-
-    const focusNames = {
+    const focusNames: Record<string, string> = {
       full_body: "Full Body",
       upper: "Upper Body (chest, back, shoulders, arms)",
       lower: "Lower Body (quads, hamstrings, glutes, calves)",
       push: "Push (chest, shoulders, triceps)",
       pull: "Pull (back, biceps, rear delts)",
     };
-
-    const equipmentNames = {
+    const equipmentNames: Record<string, string> = {
       full_gym: "Full Gym (barbells, dumbbells, machines, cables)",
       dumbbells: "Dumbbells Only",
       bodyweight: "Bodyweight Only",
     };
 
-    const userMessage = `Generate a ${body.duration}-minute workout plan with these specifications:
+    const userMessage = `Generate a ${body.duration}-minute workout plan:
 - Goal: ${goalNames[body.goal]}
-- Experience Level: ${body.level}
+- Level: ${body.level}
 - Focus: ${focusNames[body.focus]}
 - Equipment: ${equipmentNames[body.equipment]}
 
-Return the workout as JSON.`;
+Return ONLY valid JSON.`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-4o",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userMessage },
-        ],
-        response_format: { type: "json_object" },
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 2048,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userMessage }],
       }),
     });
 
     if (!aiRes.ok) {
-      if (aiRes.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limited, try again in a moment." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (aiRes.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
       const t = await aiRes.text();
-      console.error("AI gateway error:", aiRes.status, t);
-      return new Response(JSON.stringify({ error: "AI gateway error" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      console.error("Anthropic API error:", aiRes.status, t);
+      return new Response(JSON.stringify({ error: "AI error: " + aiRes.status }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const data = await aiRes.json();
-    const content = data?.choices?.[0]?.message?.content ?? "{}";
-    
-    // Parse and return the workout plan
-    const workout = JSON.parse(content);
+    const content = data?.content?.[0]?.text ?? "{}";
+
+    // Strip markdown code fences if present
+    const cleaned = content.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+    const workout = JSON.parse(cleaned);
+
+    // Demo override: ensure the first 2 main exercises are squats (pose-scored)
+    if (workout.main) {
+      const squat1 = {
+        exercise: "Barbell Back Squat",
+        sets: 3,
+        reps: "8",
+        rest: "120s",
+        notes: "Brace core, feet shoulder-width, squat to parallel"
+      };
+      const squat2 = {
+        exercise: "Barbell Back Squat",
+        sets: 3,
+        reps: "6",
+        rest: "150s",
+        notes: "Focus on depth, pause at bottom, drive through heels"
+      };
+      if (workout.main.length === 0) {
+        workout.main = [squat1, squat2];
+      } else if (workout.main.length === 1) {
+        workout.main[0] = squat1;
+        workout.main.splice(1, 0, squat2);
+      } else {
+        workout.main[0] = squat1;
+        workout.main[1] = squat2;
+      }
+    }
 
     return new Response(JSON.stringify(workout), {
       status: 200,

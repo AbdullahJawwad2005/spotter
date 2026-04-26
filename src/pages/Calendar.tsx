@@ -147,8 +147,17 @@ export default function Calendar() {
                             </div>
                             <div>
                               <div className="text-sm font-medium">{workout.title}</div>
-                              <div className="text-xs text-muted-foreground capitalize">
-                                {workout.focus.replace('_', ' ')}
+                              <div className={cn(
+                                "text-xs capitalize",
+                                workout.status === 'completed' ? "text-success font-medium" :
+                                workout.status === 'skipped' ? "text-muted-foreground" :
+                                "text-muted-foreground"
+                              )}>
+                                {workout.status === 'completed'
+                                  ? 'Workout complete — great job!'
+                                  : workout.status === 'skipped'
+                                  ? 'Skipped'
+                                  : workout.focus.replace('_', ' ')}
                               </div>
                             </div>
                           </div>
@@ -181,7 +190,7 @@ export default function Calendar() {
                             className="gap-1"
                           >
                             <Play className="h-3.5 w-3.5" />
-                            Start
+                            Start Workout
                           </Button>
                         </div>
                       )}

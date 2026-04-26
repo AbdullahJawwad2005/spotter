@@ -22,7 +22,7 @@ export function useCoachChat() {
         body: { messages: [...messages, userMsg] },
       });
       if (err) throw err;
-      const reply = (data as { reply?: string })?.reply || 'No response.';
+      const reply = (data as { text?: string })?.text || 'No response.';
       setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Chat unavailable';
@@ -32,7 +32,7 @@ export function useCoachChat() {
     }
   }, [messages]);
 
-  const reset = useCallback(() => { setMessages([]); setError(null); }, []);
+  const clearChat = useCallback(() => { setMessages([]); setError(null); }, []);
 
-  return { messages, loading, error, sendMessage, reset };
+  return { messages, loading, error, sendMessage, clearChat };
 }

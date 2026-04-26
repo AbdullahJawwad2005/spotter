@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Navigation } from '@/components/app/Navigation';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { Loader2, Dumbbell, Clock, RotateCcw, Flame, Target, Zap } from 'lucide-react';
+import { Loader2, Dumbbell, Clock, RotateCcw, Flame, Target, Zap, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Goal = 'strength' | 'muscle' | 'fat_loss' | 'fitness';
@@ -59,6 +59,7 @@ export default function Workout() {
   const [isLoading, setIsLoading] = useState(false);
   const [workout, setWorkout] = useState<WorkoutPlan | null>(null);
   const [savedPlanId, setSavedPlanId] = useState<string | null>(null);
+  const [genError, setGenError] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = 'Workout Planner — AIGymCoach';
@@ -68,6 +69,7 @@ export default function Workout() {
     if (!user) return;
     setIsLoading(true);
     setWorkout(null);
+    setGenError(null);
 
     try {
       const { data, error } = await supabase.functions.invoke('generate-workout', {
@@ -94,8 +96,13 @@ export default function Workout() {
         .single();
 
       if (planData) setSavedPlanId(planData.id);
+
+      // Save to localStorage for quick session (clear old session so it starts fresh)
+      localStorage.setItem('fc_quick_plan', JSON.stringify(data));
+      localStorage.removeItem('fc_session_quick');
     } catch (e) {
       console.error(e);
+      setGenError(e instanceof Error ? e.message : 'Failed to generate workout. Check that your edge functions are deployed and ANTHROPIC_API_KEY is set.');
     } finally {
       setIsLoading(false);
     }
@@ -226,6 +233,12 @@ export default function Workout() {
               </div>
             </div>
 
+            {genError && (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {genError}
+              </div>
+            )}
+
             <Button onClick={generateWorkout} disabled={isLoading} className="w-full h-12 text-base">
               {isLoading ? (
                 <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Generating plan...</>
@@ -249,11 +262,9 @@ export default function Workout() {
                 <Button variant="outline" onClick={() => setWorkout(null)}>
                   <RotateCcw className="h-4 w-4 mr-2" /> New workout
                 </Button>
-                {savedPlanId && (
-                  <Button onClick={() => navigate(`/workout/${savedPlanId}`)}>
-                    View Details
-                  </Button>
-                )}
+                <Button onClick={() => navigate('/session/quick')} className="gap-2">
+                  <Play className="h-4 w-4" /> Start Session
+                </Button>
               </div>
             </div>
 

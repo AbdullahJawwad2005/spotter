@@ -11,6 +11,7 @@ import Calendar from "@/pages/Calendar";
 import Workout from "@/pages/Workout";
 import WorkoutDetail from "@/pages/WorkoutDetail";
 import WorkoutSession from "@/pages/WorkoutSession";
+import QuickSession from "@/pages/QuickSession";
 import Chat from "@/pages/Chat";
 import Settings from "@/pages/Settings";
 import Trainer from "@/pages/Trainer";
@@ -37,8 +38,9 @@ const App = () => (
           <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
           <Route path="/calendar" element={<AuthGuard><Calendar /></AuthGuard>} />
           <Route path="/workout" element={<AuthGuard><Workout /></AuthGuard>} />
-          <Route path="/workout/:planId" element={<AuthGuard><WorkoutDetail /></AuthGuard>} />
           <Route path="/workout/session/:scheduledWorkoutId" element={<AuthGuard><WorkoutSession /></AuthGuard>} />
+          <Route path="/workout/:planId" element={<AuthGuard><WorkoutDetail /></AuthGuard>} />
+          <Route path="/session/quick" element={<AuthGuard><QuickSession /></AuthGuard>} />
           <Route path="/chat" element={<AuthGuard><Chat /></AuthGuard>} />
           <Route path="/settings" element={<AuthGuard><Settings /></AuthGuard>} />
 

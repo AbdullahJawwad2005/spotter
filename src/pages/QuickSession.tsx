@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Navigation } from '@/components/app/Navigation';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -13,7 +13,7 @@ import { WorkoutProgress } from '@/components/app/WorkoutProgress';
 import { RepFeedbackList } from '@/components/app/RepFeedbackList';
 import { TapRepCounter } from '@/components/app/TapRepCounter';
 import { RestSummary, type SetRecord } from '@/components/app/RestSummary';
-import { useWorkoutSession } from '@/hooks/useWorkoutSession';
+import { useQuickSession } from '@/hooks/useQuickSession';
 import { useMediaPipePose } from '@/hooks/useMediaPipePose';
 import { SquatEngine, type RealtimeState } from '@/lib/squat-engine';
 import { squatMetrics, type Landmark } from '@/lib/pose-math';
@@ -27,13 +27,12 @@ import { cn } from '@/lib/utils';
 
 type SessionPhase = 'ready' | 'lifting' | 'resting' | 'complete';
 
-export default function WorkoutSession() {
-  const { scheduledWorkoutId } = useParams<{ scheduledWorkoutId: string }>();
+export default function QuickSession() {
   const navigate = useNavigate();
   const {
-    scheduled, planData, session, loading, error,
+    planData, session, loading, error,
     getCurrentExercise, completeSet, skipRest, finishWorkout,
-  } = useWorkoutSession(scheduledWorkoutId);
+  } = useQuickSession();
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
@@ -50,18 +49,28 @@ export default function WorkoutSession() {
   const lastSpokenRep = useRef(0);
   const [elapsed, setElapsed] = useState(0);
   const [workoutFinished, setWorkoutFinished] = useState(false);
+  const userStartedCamera = useRef(false);
+  const autoFinishedRef = useRef(false);
+  const prevSessionPhase = useRef<SessionPhase>('ready');
 
   const current = getCurrentExercise();
   const isFormScored = current
     ? FORM_SCORED_EXERCISES.some((id) => (current.exercise || '').toLowerCase().includes(id))
     : false;
 
+  const currentRestSec = useMemo(() => {
+    const restStr = (current as any)?.rest;
+    if (!restStr) return 60;
+    const match = String(restStr).match(/(\d+)/);
+    return match ? parseInt(match[1], 10) : 60;
+  }, [current]);
+
   const warmupLen = planData?.warmup?.length || 0;
   const mainLen = planData?.main?.length || 0;
   const totalExercises = warmupLen + mainLen + (planData?.cooldown?.length || 0);
   const progressPercent = session ? (session.exerciseIndex / Math.max(totalExercises, 1)) * 100 : 0;
   const setsCompletedByIndex = session?.exercises.map((e) => e.setsCompleted) || [];
-  const planTitle = scheduled?.title || planData?.title || 'Workout';
+  const planTitle = planData?.title || 'Quick Workout';
 
   const exerciseIndex = session?.exerciseIndex || 0;
   const setsCompleted = session?.exercises[exerciseIndex]?.setsCompleted || 0;
@@ -87,6 +96,7 @@ export default function WorkoutSession() {
 
   const cameraReady = status === 'running';
 
+  // Per-rep voice feedback
   useEffect(() => {
     if (sessionPhase !== 'lifting' || !isFormScored || !voiceEnabled) return;
     const last = formState.reps[formState.reps.length - 1];
@@ -99,13 +109,60 @@ export default function WorkoutSession() {
     speak(line, { force: true });
   }, [formState.reps, sessionPhase, isFormScored, voiceEnabled]);
 
-  const handleStartCamera = () => { primeVoice(); startPose(); };
-  const handleStopCamera = () => { stopPose(); setLandmarks(null); };
+  // Auto-finish set when target reps reached (form-scored exercises)
+  useEffect(() => {
+    if (sessionPhase !== 'lifting' || !isFormScored) return;
+    const repsRaw = (current as any)?.reps;
+    const targetReps = typeof repsRaw === 'number' ? repsRaw : parseInt(String(repsRaw)) || 8;
+    if (formState.repCount < targetReps) { autoFinishedRef.current = false; return; }
+    if (autoFinishedRef.current) return;
+    autoFinishedRef.current = true;
+    // Completion tones
+    tone(660, 100);
+    setTimeout(() => tone(880, 100), 160);
+    setTimeout(() => tone(1100, 180), 320);
+    // Speak rest duration, then finish the set
+    const restSec = currentRestSec;
+    const restText = restSec >= 60
+      ? `${Math.floor(restSec / 60)} minute${Math.floor(restSec / 60) > 1 ? 's' : ''}`
+      : `${restSec} seconds`;
+    setTimeout(() => {
+      speak(`Set complete! Rest ${restText}.`, { force: true });
+      handleFinishSet();
+    }, 450);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formState.repCount, sessionPhase, isFormScored]);
+
+  // Camera auto-restart when entering 'ready' after rest
+  useEffect(() => {
+    const prev = prevSessionPhase.current;
+    prevSessionPhase.current = sessionPhase;
+    if (sessionPhase === 'ready' && prev === 'resting') {
+      if (userStartedCamera.current && isFormScored && status !== 'running' && status !== 'loading') {
+        const t = setTimeout(() => startPose(), 300);
+        return () => clearTimeout(t);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionPhase, isFormScored]);
+
+  const handleStartCamera = () => {
+    primeVoice();
+    startPose();
+    userStartedCamera.current = true;
+  };
+
+  const handleStopCamera = () => {
+    stopPose();
+    setLandmarks(null);
+    userStartedCamera.current = false;
+  };
 
   const handleStartSet = () => {
     primeVoice();
     engineRef.current.reset();
     lastSpokenRep.current = 0;
+    autoFinishedRef.current = false;
     setFormState({ phase: 'standing', repCount: 0, currentDepth: 180, liveScore: 100, liveCue: 'Ready', reps: [], riskScore: 0 });
     setLandmarks(null);
     setSessionPhase('lifting');
@@ -178,22 +235,24 @@ export default function WorkoutSession() {
     : 0;
   const scoreAccent = formState.liveScore >= 85 ? 'good' : formState.liveScore >= 65 ? 'warn' : 'bad';
 
+  // ── Loading ──
   if (loading) return (
     <div className="min-h-screen bg-background"><Navigation />
       <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
     </div>
   );
 
-  if (error || !scheduled || !planData) return (
+  if (error || !planData) return (
     <div className="min-h-screen bg-background"><Navigation />
       <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
         <Dumbbell className="h-12 w-12 text-muted-foreground" />
-        <p className="text-muted-foreground">{error || 'Workout not found'}</p>
-        <Button onClick={() => navigate('/dashboard')}>Back to Dashboard</Button>
+        <p className="text-muted-foreground">{error || 'No workout plan found'}</p>
+        <Button onClick={() => navigate('/workout')}>Generate a Workout</Button>
       </div>
     </div>
   );
 
+  // ── Complete ──
   if (workoutFinished || session?.phase === 'done') {
     const mainExercises = session?.exercises.slice(warmupLen, warmupLen + mainLen) || [];
     const completed = mainExercises.filter((e) => e.setsCompleted > 0).length;
@@ -218,20 +277,22 @@ export default function WorkoutSession() {
           )}
           <div className="flex gap-3 justify-center">
             <Button onClick={() => navigate('/dashboard')}>Dashboard</Button>
-            <Button variant="outline" onClick={() => navigate('/calendar')}>Schedule</Button>
+            <Button variant="outline" onClick={() => navigate('/workout')}>New Workout</Button>
           </div>
         </div>
       </div>
     );
   }
 
+  // ── Active session ──
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
 
+      {/* Top bar: progress + timer + voice */}
       <div className="border-b border-border">
         <div className="max-w-[1400px] mx-auto px-6 h-11 flex items-center gap-4">
-          <button onClick={() => navigate('/dashboard')}
+          <button onClick={() => navigate('/workout')}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0">
             <ArrowLeft className="h-4 w-4" /> Exit
           </button>
@@ -240,8 +301,10 @@ export default function WorkoutSession() {
             <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <Timer className="h-3.5 w-3.5" />{formatTime(elapsed)}
             </span>
-            <button onClick={() => { setVoiceEnabled(v => !v); if (voiceEnabled) stopSpeaking(); }}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+            <button
+              onClick={() => { setVoiceEnabled(v => !v); if (voiceEnabled) stopSpeaking(); }}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
               {voiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
             </button>
           </div>
@@ -250,6 +313,7 @@ export default function WorkoutSession() {
 
       <main className="max-w-[1400px] mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
 
+        {/* ── Left sidebar: workout plan ── */}
         <aside className="space-y-3 lg:sticky lg:top-6 lg:self-start">
           {planData && (
             <WorkoutProgress
@@ -265,8 +329,10 @@ export default function WorkoutSession() {
           </button>
         </aside>
 
+        {/* ── Right main ── */}
         <section className="space-y-4">
 
+          {/* Exercise header card */}
           {current && (
             <div className="border border-border rounded-xl bg-card p-5 flex flex-wrap items-center justify-between gap-4">
               <div>
@@ -294,23 +360,29 @@ export default function WorkoutSession() {
             </div>
           )}
 
+          {/* Resting: coach debrief */}
           {sessionPhase === 'resting' && completedSet && (
             <RestSummary
               set={completedSet}
-              restSec={60}
+              restSec={currentRestSec}
               isLastSet={currentSetNum >= totalSets}
               onContinue={handleContinueAfterRest}
               onSkip={() => { skipRest(); handleContinueAfterRest(); }}
             />
           )}
 
+          {/* Ready / Lifting */}
           {(sessionPhase === 'ready' || sessionPhase === 'lifting') && current && (
             isFormScored ? (
+              /* ── Pose-scored: camera + metrics grid ── */
               <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
 
+                {/* Camera card */}
                 <div className="border border-border rounded-xl bg-card overflow-hidden">
                   <div className="px-4 py-3 flex items-center justify-between border-b border-border">
-                    <div className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Live form coaching</div>
+                    <div className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                      Live form coaching
+                    </div>
                     <div className="flex items-center gap-2">
                       {cameraReady && (
                         <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -331,6 +403,7 @@ export default function WorkoutSession() {
                     </div>
                   </div>
 
+                  {/* Video always mounted — dark overlay when camera off */}
                   <div className="relative aspect-video bg-black">
                     <video ref={videoRef} playsInline muted
                       className="absolute inset-0 h-full w-full object-cover scale-x-[-1]" />
@@ -379,6 +452,7 @@ export default function WorkoutSession() {
                   </div>
                 </div>
 
+                {/* Metrics column */}
                 <div className="space-y-3">
                   <div className="border border-border rounded-xl bg-card p-4 space-y-3">
                     <div className="flex items-baseline justify-between">
@@ -392,7 +466,9 @@ export default function WorkoutSession() {
                       </div>
                       <div className="text-right">
                         <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Reps</div>
-                        <div className="text-3xl font-display tabular" key={`r-${formState.repCount}`}>{formState.repCount}</div>
+                        <div className="text-3xl font-display tabular" key={`r-${formState.repCount}`}>
+                          {formState.repCount}
+                        </div>
                       </div>
                     </div>
                     <RepPills reps={formState.reps} />
@@ -419,6 +495,7 @@ export default function WorkoutSession() {
                 </div>
               </div>
             ) : (
+              /* ── Tap-count exercises ── */
               sessionPhase === 'ready' ? (
                 <div className="border border-border rounded-xl bg-card p-8 text-center space-y-5">
                   <div className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">Get ready</div>

@@ -1,9 +1,12 @@
-// AI Fitness Trainer chatbot edge function — streaming chat with fitness context.
-// Uses Lovable AI Gateway with OpenAI model.
-import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
+// AI Fitness Trainer chatbot edge function using Anthropic API.
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
 interface Message {
-  role: "user" | "assistant" | "system";
+  role: "user" | "assistant";
   content: string;
 }
 
@@ -11,7 +14,7 @@ interface ChatPayload {
   messages: Message[];
 }
 
-const SYSTEM_PROMPT = `You are an elite AI fitness trainer with expertise in strength training, bodybuilding, powerlifting, and general fitness. Your name is CoachAI.
+const SYSTEM_PROMPT = `You are an elite AI fitness trainer named CoachAI with expertise in strength training, bodybuilding, powerlifting, and general fitness.
 
 Your knowledge includes:
 - Exercise form and technique for all major lifts and movements
@@ -20,19 +23,15 @@ Your knowledge includes:
 - Injury prevention and recovery
 - Nutrition basics for muscle building, fat loss, and performance
 - Warm-up and mobility routines
-- Rest and recovery optimization
 
 Communication style:
 - Be direct, motivating, and knowledgeable
 - Give specific, actionable advice
-- Reference proper form cues when discussing exercises
 - Ask clarifying questions when the user's fitness level or goals are unclear
-- Encourage consistency and proper form over ego lifting
-- Be supportive but honest — don't sugarcoat when someone needs to improve
+- Encourage consistency and proper form
+- Always prioritize safety — if someone describes pain, recommend seeing a medical professional
 
-Always prioritize safety. If someone describes pain or potential injury, recommend they see a medical professional.
-
-Keep responses concise but thorough. Use numbered lists for multi-step instructions. Avoid generic advice — be specific to what the user asks.`;
+Keep responses concise but thorough. Avoid generic advice.`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -46,55 +45,44 @@ Deno.serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
-    // Build messages array with system prompt
-    const messages: Message[] = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...body.messages,
-    ];
+    // Filter to only user/assistant roles (Anthropic doesn't use system in messages array)
+    const messages = body.messages
+      .filter((m) => m.role === "user" || m.role === "assistant")
+      .map((m) => ({ role: m.role, content: m.content }));
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "openai/gpt-4o",
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 1024,
+        system: SYSTEM_PROMPT,
         messages,
-        stream: true,
       }),
     });
 
     if (!aiRes.ok) {
-      if (aiRes.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limited, try again in a moment." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (aiRes.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Add more in workspace settings." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
       const t = await aiRes.text();
-      console.error("AI gateway error:", aiRes.status, t);
-      return new Response(JSON.stringify({ error: "AI gateway error" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      console.error("Anthropic API error:", aiRes.status, t);
+      return new Response(JSON.stringify({ error: "AI error: " + aiRes.status }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Stream the response back
-    return new Response(aiRes.body, {
+    const data = await aiRes.json();
+    const text = data?.content?.[0]?.text ?? "";
+
+    return new Response(JSON.stringify({ text }), {
       status: 200,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
-      },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("fitness-chat error:", e);
