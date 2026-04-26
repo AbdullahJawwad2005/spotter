@@ -2,6 +2,16 @@ import { FrameMetrics, Smoother } from "./pose-math";
 
 export type Phase = "standing" | "descending" | "bottom" | "ascending";
 
+export interface RepFeedback {
+  /** Short label of the main issue, e.g. "Shallow depth". "Clean rep" if none. */
+  issue: string;
+  /** Concrete actionable instruction, e.g. "Sit 2 inches lower; break parallel before driving up." */
+  fix: string;
+  /** Short voice line spoken aloud after the rep. */
+  voice: string;
+  severity: "good" | "minor" | "major";
+}
+
 export interface RepResult {
   index: number;
   score: number;          // 0-100
@@ -11,6 +21,7 @@ export interface RepResult {
   durationMs: number;
   cues: string[];         // flagged issues
   primaryCue: string;     // headline cue spoken aloud
+  feedback: RepFeedback;  // detailed per-rep feedback for UI + voice
 }
 
 export interface RealtimeState {
@@ -177,6 +188,16 @@ export class SquatEngine {
     score = Math.max(0, Math.min(100, Math.round(score)));
     const primaryCue = cues[0] ?? "Clean rep";
 
+    // Build detailed feedback for UI + voice — pick the worst issue.
+    const feedback = buildFeedback({
+      score,
+      depthDelta,
+      backOver: this.maxBack - maxBackOk,
+      asymOver: this.maxAsym - maxAsymOk,
+      tooDeep: depthDelta < -25,
+      durationMs: Math.max(400, now - this.repStartedAt),
+    });
+
     this.repIndex += 1;
     return {
       index: this.repIndex,
@@ -187,6 +208,7 @@ export class SquatEngine {
       durationMs: Math.max(400, now - this.repStartedAt),
       cues,
       primaryCue,
+      feedback,
     };
   }
 
@@ -209,5 +231,87 @@ export class SquatEngine {
       reps: this.reps,
       riskScore: risk,
     };
+  }
+}
+
+interface FeedbackInput {
+  score: number;
+  /** positive = shallow (didn't reach target), negative = past target */
+  depthDelta: number;
+  /** positive = exceeded back-lean tolerance */
+  backOver: number;
+  /** positive = exceeded asymmetry tolerance */
+  asymOver: number;
+  tooDeep: boolean;
+  durationMs: number;
+}
+
+function buildFeedback(input: FeedbackInput): RepFeedback {
+  const { score, depthDelta, backOver, asymOver, tooDeep, durationMs } = input;
+
+  // Pick the dominant issue by largest penalty contribution.
+  const issues: { kind: string; weight: number }[] = [];
+  if (depthDelta > 0) issues.push({ kind: "shallow", weight: depthDelta * 1.2 });
+  if (backOver > 0) issues.push({ kind: "lean", weight: backOver * 1.4 });
+  if (asymOver > 0) issues.push({ kind: "asym", weight: asymOver * 1.0 });
+  if (tooDeep) issues.push({ kind: "deep", weight: 8 });
+  if (durationMs < 800) issues.push({ kind: "fast", weight: 10 });
+
+  if (!issues.length) {
+    return {
+      issue: "Clean rep",
+      fix: "Same tempo, same depth — keep stacking reps like that.",
+      voice: "Clean rep.",
+      severity: "good",
+    };
+  }
+
+  issues.sort((a, b) => b.weight - a.weight);
+  const top = issues[0].kind;
+  const severity: RepFeedback["severity"] = score >= 75 ? "minor" : "major";
+
+  switch (top) {
+    case "shallow":
+      return {
+        issue: `Shallow by ~${Math.round(depthDelta)}°`,
+        fix: "Sit your hips back and down further — break parallel before driving up. Try slowing the descent so you actually reach depth.",
+        voice: "Go deeper. Hit parallel before standing.",
+        severity,
+      };
+    case "lean":
+      return {
+        issue: `Chest dropped ~${Math.round(backOver)}° too far`,
+        fix: "Brace your core, eyes forward, and lead with your chest on the way up. Think 'proud chest' through the whole rep.",
+        voice: "Chest up. Brace harder.",
+        severity,
+      };
+    case "asym":
+      return {
+        issue: `Knee imbalance ~${Math.round(asymOver)}°`,
+        fix: "Drive evenly through both feet — push the floor away with the weaker side. Spread your toes and grip the ground.",
+        voice: "Even your knees. Push both feet down.",
+        severity,
+      };
+    case "deep":
+      return {
+        issue: "Dropped past control range",
+        fix: "Stop ~5° above your max; bouncing the bottom puts your knees and lower back at risk. Pause for a beat at depth instead.",
+        voice: "Control the bottom. No bounce.",
+        severity,
+      };
+    case "fast":
+      return {
+        issue: "Tempo too fast",
+        fix: "Aim for ~1 second down, brief pause, ~1 second up. Speed hides form breakdown — slow it down to own the rep.",
+        voice: "Slow it down. Own the tempo.",
+        severity,
+      };
+    default:
+      return {
+        issue: "Form drift",
+        fix: "Reset your stance and breath before the next rep.",
+        voice: "Reset. Then go again.",
+        severity,
+      };
   }
 }

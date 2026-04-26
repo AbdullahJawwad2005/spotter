@@ -2,6 +2,19 @@
 let lastSpoken = "";
 let lastTime = 0;
 
+export function stopSpeaking() {
+  try { window.speechSynthesis.cancel(); } catch { /* noop */ }
+}
+
+export function primeVoice() {
+  // Unlocks TTS on iOS/Safari — must be called in a user gesture handler
+  try {
+    const u = new SpeechSynthesisUtterance(" ");
+    u.volume = 0;
+    window.speechSynthesis.speak(u);
+  } catch { /* noop */ }
+}
+
 export function speak(text: string, opts: { force?: boolean } = {}) {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
   const now = performance.now();

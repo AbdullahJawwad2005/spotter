@@ -7,6 +7,9 @@ export interface Exercise {
   muscles: { label: string; weight: number }[]; // 0-1
 }
 
+/** Exercise IDs that support AI pose-based form scoring. */
+export const FORM_SCORED_EXERCISES: ExerciseId[] = ["squat"];
+
 export const EXERCISES: Record<ExerciseId, Exercise> = {
   squat: {
     id: "squat",
