@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import type { PlanData } from '@/hooks/useWorkoutPlan';
+import { sortSquatFirst } from '@/lib/exercises';
 
 export interface ExerciseProgress {
   exerciseIndex: number;
@@ -35,7 +36,8 @@ export function useQuickSession() {
       return;
     }
     try {
-      const pd = JSON.parse(raw) as PlanData;
+      const parsed = JSON.parse(raw) as PlanData;
+      const pd = { ...parsed, warmup: [], main: sortSquatFirst(parsed.main ?? []) };
       setPlanData(pd);
       initSession(pd);
     } catch {
@@ -66,18 +68,19 @@ export function useQuickSession() {
   }, [session?.isResting]);
 
   const initSession = (pd: PlanData) => {
+    const totalExercises = (pd.warmup?.length || 0) + (pd.main?.length || 0) + (pd.cooldown?.length || 0);
     const saved = localStorage.getItem(QUICK_SESSION_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as SessionState;
-        if (parsed.phase !== 'done') {
+        if (parsed.phase !== 'done' && parsed.exercises.length === totalExercises) {
           setSession(parsed);
           return;
         }
       } catch { /* fall through */ }
+      localStorage.removeItem(QUICK_SESSION_KEY);
     }
 
-    const totalExercises = (pd.warmup?.length || 0) + (pd.main?.length || 0) + (pd.cooldown?.length || 0);
     const exercises: ExerciseProgress[] = Array.from({ length: totalExercises }, (_, i) => ({
       exerciseIndex: i,
       setsCompleted: 0,
@@ -85,7 +88,7 @@ export function useQuickSession() {
     }));
 
     const newSession: SessionState = {
-      phase: 'warmup',
+      phase: 'main',
       exerciseIndex: 0,
       setIndex: 0,
       exercises,

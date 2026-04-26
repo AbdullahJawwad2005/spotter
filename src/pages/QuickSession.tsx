@@ -245,7 +245,7 @@ export default function QuickSession() {
   if (error || !planData) return (
     <div className="min-h-screen bg-background"><Navigation />
       <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
-        <Dumbbell className="h-12 w-12 text-muted-foreground" />
+        <img src="/SpotterLogo.png" alt="Spotter" className="h-12 w-12 object-contain opacity-40" />
         <p className="text-muted-foreground">{error || 'No workout plan found'}</p>
         <Button onClick={() => navigate('/workout')}>Generate a Workout</Button>
       </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Database } from '@/integrations/supabase/types';
+import { sortSquatFirst } from '@/lib/exercises';
 
 type WorkoutPlan = Database['public']['Tables']['workout_plans']['Row'];
 
@@ -37,7 +38,11 @@ export function useWorkoutPlan(planId: string | undefined) {
       .maybeSingle();
 
     if (err) setError(err.message);
-    else if (data) { setPlan(data); setPlanData(data.plan_data as unknown as PlanData); }
+    else if (data) {
+      setPlan(data);
+      const raw = data.plan_data as unknown as PlanData;
+      setPlanData({ ...raw, warmup: [], main: sortSquatFirst(raw.main ?? []) });
+    }
     setLoading(false);
   };
 

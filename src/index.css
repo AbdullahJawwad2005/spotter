@@ -2,108 +2,105 @@
 @tailwind components;
 @tailwind utilities;
 
-/* FormCheck AI design system. 2026 SaaS aesthetic — off-white, deep teal accent,
-   flat, generous whitespace, hairline borders. All colors HSL. */
+/* Spotter design system — pitch black, pure white contrast. */
 
 @import url('https://rsms.me/inter/inter.css');
 
 @layer base {
   :root {
-    /* Surfaces — off-white, not pure white */
-    --background: 40 20% 97%;
-    --foreground: 200 25% 10%;
+    /* Light theme */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 5%;
 
-    --card: 40 25% 99%;
-    --card-foreground: 200 25% 10%;
+    --card: 0 0% 98%;
+    --card-foreground: 0 0% 5%;
 
-    --popover: 40 25% 99%;
-    --popover-foreground: 200 25% 10%;
+    --popover: 0 0% 98%;
+    --popover-foreground: 0 0% 5%;
 
-    /* Brand: deep teal */
-    --primary: 184 65% 22%;
-    --primary-foreground: 40 30% 98%;
-    --primary-glow: 184 55% 38%;
+    --primary: 0 0% 5%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 0 0% 30%;
 
-    --secondary: 40 15% 93%;
-    --secondary-foreground: 200 25% 10%;
+    --secondary: 0 0% 94%;
+    --secondary-foreground: 0 0% 5%;
 
-    --muted: 40 15% 94%;
-    --muted-foreground: 200 10% 42%;
+    --muted: 0 0% 94%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 184 60% 94%;
-    --accent-foreground: 184 65% 22%;
+    --accent: 0 0% 92%;
+    --accent-foreground: 0 0% 5%;
 
-    --destructive: 358 70% 52%;
-    --destructive-foreground: 40 30% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
-    --warning-foreground: 200 25% 10%;
+    --warning-foreground: 0 0% 0%;
 
-    --success: 158 60% 38%;
-    --success-foreground: 40 30% 98%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
 
-    /* Hairline borders */
-    --border: 200 12% 88%;
-    --input: 200 12% 88%;
-    --ring: 184 65% 22%;
+    --border: 0 0% 88%;
+    --input: 0 0% 92%;
+    --ring: 0 0% 5%;
 
     --radius: 0.625rem;
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 0 0% 97%;
+    --sidebar-foreground: 0 0% 10%;
+    --sidebar-primary: 0 0% 5%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 90%;
+    --sidebar-accent-foreground: 0 0% 10%;
+    --sidebar-border: 0 0% 88%;
+    --sidebar-ring: 0 0% 5%;
   }
 
   .dark {
-    /* Dark — gym-dim friendly. Deep slate, brighter teal. */
-    --background: 200 25% 7%;
-    --foreground: 40 20% 95%;
+    /* Pitch black theme */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 95%;
 
-    --card: 200 22% 9%;
-    --card-foreground: 40 20% 95%;
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 95%;
 
-    --popover: 200 22% 9%;
-    --popover-foreground: 40 20% 95%;
+    --popover: 0 0% 5%;
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 184 60% 50%;
-    --primary-foreground: 200 25% 8%;
-    --primary-glow: 184 70% 60%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 0%;
+    --primary-glow: 0 0% 80%;
 
-    --secondary: 200 18% 14%;
-    --secondary-foreground: 40 20% 95%;
+    --secondary: 0 0% 9%;
+    --secondary-foreground: 0 0% 95%;
 
-    --muted: 200 18% 13%;
-    --muted-foreground: 200 8% 60%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 50%;
 
-    --accent: 184 50% 18%;
-    --accent-foreground: 184 60% 70%;
+    --accent: 0 0% 13%;
+    --accent-foreground: 0 0% 95%;
 
-    --destructive: 358 70% 58%;
-    --destructive-foreground: 40 20% 95%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 0%;
 
-    --warning: 38 92% 55%;
-    --warning-foreground: 200 25% 8%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
 
-    --success: 158 60% 48%;
-    --success-foreground: 200 25% 8%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 0%;
 
-    --border: 200 15% 18%;
-    --input: 200 15% 18%;
-    --ring: 184 60% 50%;
+    --border: 0 0% 14%;
+    --input: 0 0% 12%;
+    --ring: 0 0% 100%;
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 0 0% 3%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 0 0% 9%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 0 0% 12%;
+    --sidebar-ring: 0 0% 100%;
   }
 }
 

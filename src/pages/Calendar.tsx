@@ -23,7 +23,7 @@ export default function Calendar() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    document.title = 'Schedule — AIGymCoach';
+    document.title = 'Schedule — Spotter';
   }, []);
 
   useEffect(() => {

@@ -5,7 +5,7 @@
  *  - Speech requires a user gesture to "unlock" audio (autoplay policy).
  *  - Voices load asynchronously — getVoices() can be empty for ~100-1000ms.
  *  - Chrome stops synthesis after ~15s; we resume() defensively.
- *  - In iframes, the parent must allow speech (Lovable preview does).
+ *  - In iframes, the parent must allow speech via the `allow="speaker"` attribute.
  */
 
 let lastSpoken = "";

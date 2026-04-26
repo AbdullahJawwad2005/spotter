@@ -13,7 +13,7 @@ export const FORM_SCORED_EXERCISES: ExerciseId[] = ["squat"];
 export const EXERCISES: Record<ExerciseId, Exercise> = {
   squat: {
     id: "squat",
-    name: "Back squat",
+    name: "Squat",
     blurb: "Hip hinge below parallel, drive through midfoot.",
     muscles: [
       { label: "Quads", weight: 0.95 },
@@ -51,3 +51,14 @@ export const EXERCISES: Record<ExerciseId, Exercise> = {
     ],
   },
 };
+
+/** Reorders a main-exercise array so the plain "Squat" always comes first (exact match only). */
+export function sortSquatFirst<T extends { exercise: string }>(exercises: T[]): T[] {
+  return [...exercises].sort((a, b) => {
+    const aIsSquat = a.exercise.toLowerCase().trim() === 'squat';
+    const bIsSquat = b.exercise.toLowerCase().trim() === 'squat';
+    if (aIsSquat && !bIsSquat) return -1;
+    if (!aIsSquat && bIsSquat) return 1;
+    return 0;
+  });
+}

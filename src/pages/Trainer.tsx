@@ -34,7 +34,7 @@ const Trainer = () => {
 
   // SEO
   useEffect(() => {
-    document.title = "FormCheck AI — live rep scoring";
+    document.title = "Spotter — Live Form Coaching";
   }, []);
 
   useEffect(() => {

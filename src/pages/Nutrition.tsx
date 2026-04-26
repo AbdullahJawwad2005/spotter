@@ -78,7 +78,7 @@ export default function Nutrition() {
   const [mealPlan, setMealPlan] = useState<MealPlan | null>(null);
 
   useEffect(() => {
-    document.title = "Nutrition Tracker — FormCheck AI";
+    document.title = "Nutrition — Spotter";
   }, []);
 
   useEffect(() => {

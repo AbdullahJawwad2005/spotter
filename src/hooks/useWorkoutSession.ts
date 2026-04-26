@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import type { PlanData } from '@/hooks/useWorkoutPlan';
 import type { Database } from '@/integrations/supabase/types';
+import { sortSquatFirst } from '@/lib/exercises';
 
 type ScheduledWorkout = Database['public']['Tables']['scheduled_workouts']['Row'];
 
@@ -91,7 +92,8 @@ export function useWorkoutSession(scheduledWorkoutId: string | undefined) {
       .maybeSingle();
 
     if (plan?.plan_data) {
-      const pd = plan.plan_data as unknown as PlanData;
+      const raw = plan.plan_data as unknown as PlanData;
+      const pd = { ...raw, warmup: [], main: sortSquatFirst(raw.main ?? []) };
       setPlanData(pd);
       initSession(pd, scheduledWorkoutId);
     } else {
@@ -101,19 +103,18 @@ export function useWorkoutSession(scheduledWorkoutId: string | undefined) {
   };
 
   const initSession = (pd: PlanData, swId: string) => {
-    // Check localStorage for existing session
+    const totalExercises = (pd.warmup?.length || 0) + (pd.main?.length || 0) + (pd.cooldown?.length || 0);
     const saved = localStorage.getItem(sessionKey(swId));
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as SessionState;
-        if (parsed.phase !== 'done') {
+        if (parsed.phase !== 'done' && parsed.exercises.length === totalExercises) {
           setSession(parsed);
           return;
         }
       } catch { /* fall through */ }
+      localStorage.removeItem(sessionKey(swId));
     }
-
-    const totalExercises = (pd.warmup?.length || 0) + (pd.main?.length || 0) + (pd.cooldown?.length || 0);
     const exercises: ExerciseProgress[] = Array.from({ length: totalExercises }, (_, i) => ({
       exerciseIndex: i,
       setsCompleted: 0,
@@ -121,7 +122,7 @@ export function useWorkoutSession(scheduledWorkoutId: string | undefined) {
     }));
 
     const newSession: SessionState = {
-      phase: 'warmup',
+      phase: 'main',
       exerciseIndex: 0,
       setIndex: 0,
       exercises,

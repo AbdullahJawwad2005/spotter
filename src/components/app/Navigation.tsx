@@ -1,20 +1,35 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import { Logo } from "./Logo";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, Calendar, MessageSquare, LayoutDashboard } from "lucide-react";
+import { LogOut, Calendar, MessageSquare, LayoutDashboard, Apple, ScanLine, Sun, Moon } from "lucide-react";
 
 const navItems = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { path: "/calendar", label: "Schedule", icon: Calendar },
+  { path: "/trainer", label: "Form Coach", icon: ScanLine },
   { path: "/chat", label: "AI Coach", icon: MessageSquare },
+  { path: "/nutrition", label: "Nutrition", icon: Apple },
 ];
 
 export function Navigation() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
+  const [isDark, setIsDark] = useState(() =>
+    document.documentElement.classList.contains('dark')
+  );
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('spotter-theme', isDark ? 'dark' : 'light');
+  }, [isDark]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -58,6 +73,13 @@ export function Navigation() {
                 {profile?.full_name || user.email}
               </span>
             </div>
+            <button
+              onClick={() => setIsDark(v => !v)}
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
             <button
               onClick={handleSignOut}
               className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"

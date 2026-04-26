@@ -6,6 +6,7 @@ import { Navigation } from '@/components/app/Navigation';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Loader2, Dumbbell, Clock, RotateCcw, Flame, Target, Zap, Play } from 'lucide-react';
+import { sortSquatFirst } from '@/lib/exercises';
 import { cn } from '@/lib/utils';
 
 type Goal = 'strength' | 'muscle' | 'fat_loss' | 'fitness';
@@ -62,7 +63,7 @@ export default function Workout() {
   const [genError, setGenError] = useState<string | null>(null);
 
   useEffect(() => {
-    document.title = 'Workout Planner — AIGymCoach';
+    document.title = 'Workout Planner — Spotter';
   }, []);
 
   const generateWorkout = async () => {
@@ -77,20 +78,22 @@ export default function Workout() {
       });
 
       if (error) throw error;
-      setWorkout(data as WorkoutPlan);
+      const raw = data as WorkoutPlan;
+      const sorted = { ...raw, warmup: [], main: sortSquatFirst(raw.main ?? []) };
+      setWorkout(sorted);
 
       // Save the plan to the database
       const { data: planData } = await supabase
         .from('workout_plans')
         .insert({
           user_id: user.id,
-          title: (data as WorkoutPlan).title,
+          title: sorted.title,
           goal,
           level,
           focus,
           equipment,
           duration,
-          plan_data: data,
+          plan_data: sorted,
         })
         .select('id')
         .single();
@@ -98,7 +101,7 @@ export default function Workout() {
       if (planData) setSavedPlanId(planData.id);
 
       // Save to localStorage for quick session (clear old session so it starts fresh)
-      localStorage.setItem('fc_quick_plan', JSON.stringify(data));
+      localStorage.setItem('fc_quick_plan', JSON.stringify(sorted));
       localStorage.removeItem('fc_session_quick');
     } catch (e) {
       console.error(e);

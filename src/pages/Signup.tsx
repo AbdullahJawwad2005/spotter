@@ -34,9 +34,7 @@ export default function Signup() {
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <div className="mx-auto h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-            <Dumbbell className="h-7 w-7 text-primary" />
-          </div>
+          <img src="/SpotterLogo.png" alt="Spotter" className="mx-auto h-14 w-14 object-contain mb-4 rounded-xl" />
           <h1 className="text-2xl font-display tracking-tight">Start your journey</h1>
           <p className="text-sm text-muted-foreground mt-1">Create an account and we'll build your personalized plan</p>
         </div>

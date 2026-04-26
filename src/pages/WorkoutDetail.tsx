@@ -64,7 +64,8 @@ export default function WorkoutDetail() {
 
     if (data) {
       setPlan(data);
-      setPlanData(data.plan_data as unknown as PlanData);
+      const raw = data.plan_data as unknown as PlanData;
+      setPlanData({ ...raw, warmup: [] });
 
       // Find a pending scheduled workout for this plan
       const { data: scheduled } = await supabase
@@ -99,7 +100,7 @@ export default function WorkoutDetail() {
       <div className="min-h-screen bg-background">
         <Navigation />
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Dumbbell className="h-12 w-12 text-muted-foreground mb-4" />
+          <img src="/SpotterLogo.png" alt="Spotter" className="h-12 w-12 object-contain mb-4 opacity-40" />
           <h2 className="text-lg font-display mb-2">Workout not found</h2>
           <p className="text-sm text-muted-foreground mb-4">This plan may not exist or you don't have access.</p>
           <Button onClick={() => navigate('/dashboard')}>Back to Dashboard</Button>

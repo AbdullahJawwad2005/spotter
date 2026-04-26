@@ -11,6 +11,7 @@ import {
   Flame, Target, Clock, TrendingUp, Loader2, Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { sortSquatFirst } from '@/lib/exercises';
 import type { Database } from '@/integrations/supabase/types';
 
 type ScheduledWorkout = Database['public']['Tables']['scheduled_workouts']['Row'];
@@ -34,7 +35,7 @@ export default function Dashboard() {
   const [planData, setPlanData] = useState<WorkoutPlan['plan_data'] | null>(null);
 
   useEffect(() => {
-    document.title = 'Dashboard — AIGymCoach';
+    document.title = 'Dashboard — Spotter';
   }, []);
 
   useEffect(() => {
@@ -102,7 +103,9 @@ export default function Dashboard() {
           .maybeSingle();
 
         if (plan) {
-          setPlanData(plan.plan_data);
+          const raw = plan.plan_data as { main?: { exercise: string }[]; warmup?: unknown[] } | null;
+          const sorted = raw?.main ? { ...raw, warmup: [], main: sortSquatFirst(raw.main) } : raw;
+          setPlanData(sorted as WorkoutPlan['plan_data']);
         }
       }
 
@@ -269,9 +272,7 @@ export default function Dashboard() {
         {!todayWorkout && !loading && (
           <Card className="border-border">
             <CardContent className="p-8 text-center space-y-4">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                <Dumbbell className="h-6 w-6 text-primary" />
-              </div>
+              <img src="/SpotterLogo.png" alt="Spotter" className="h-12 w-12 object-contain mx-auto" />
               <h2 className="text-lg font-display">No workout scheduled today</h2>
               <p className="text-sm text-muted-foreground">
                 Generate a workout plan to get started with your training.
@@ -295,8 +296,8 @@ export default function Dashboard() {
             <CardHeader className="pb-3 border-b border-border bg-muted/30">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-                    <Dumbbell className="h-5 w-5 text-primary-foreground" />
+                  <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center overflow-hidden p-0.5">
+                    <img src="/SpotterLogo.png" alt="" className="h-full w-full object-contain" style={{filter:'invert(1)'}} />
                   </div>
                   <div>
                     <CardTitle className="text-lg">{todayWorkout.title}</CardTitle>
